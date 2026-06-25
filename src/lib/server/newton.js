@@ -1,9 +1,10 @@
 import { ATAI_API_KEY, ATAI_API_ENDPOINT } from '$env/static/private';
 
 const API_VERSION = 'v0.5';
-const MODEL = 'Newton::c2_5_8b_260413b723a9ab';
+// C 2.6 fusion checkpoint, per the atai-newton-fusion-model skill.
+const MODEL = 'Newton::c2_6_8b_fp8_260424d7a55d5e';
 
-const SYSTEM_PROMPT =
+const INSTRUCTION_PROMPT =
 	'You are a seismology AI assistant analyzing real-time USGS earthquake data. ' +
 	'You help users understand current seismic activity patterns, identify aftershock sequences, ' +
 	'regional clustering, and assess whether activity levels are normal or elevated. ' +
@@ -27,13 +28,14 @@ export async function queryNewton(query) {
 				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
+				// The system turn goes in `instruction_prompt`. C 2.6 honors only this
+				// field; the legacy `system_prompt` is inert on this checkpoint, so we
+				// don't send it (per the atai-newton-fusion-model skill).
 				query,
-				system_prompt: SYSTEM_PROMPT,
-				instruction_prompt: SYSTEM_PROMPT,
+				instruction_prompt: INSTRUCTION_PROMPT,
 				file_ids: [],
 				model: MODEL,
-				max_new_tokens: 1024,
-				sanitize: false
+				max_new_tokens: 1024
 			}),
 			signal: controller.signal
 		});

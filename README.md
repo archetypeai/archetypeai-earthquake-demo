@@ -19,7 +19,7 @@ Newton analyzes live USGS earthquake data to identify patterns — aftershock se
 
 - **SvelteKit** with Svelte 5 runes
 - **Archetype AI Design System** — semantic tokens, component primitives, composite patterns
-- **Newton API** — direct query endpoint (`/v0.5/query`) for text-based reasoning
+- **Newton API** — Direct Query endpoint (`/v0.5/query`) for text reasoning with the C 2.6 fusion model (`Newton::c2_6_8b_fp8_260424d7a55d5e`), per the [`atai-newton-fusion-model`](https://github.com/archetypeai/agent-skills/tree/main/skills/atai-newton-fusion-model) skill
 - **USGS GeoJSON Feeds** — real-time earthquake catalog, updated every minute
 - **Tailwind v4** — styling with semantic design tokens
 
