@@ -177,14 +177,26 @@
 			c.maxMag = Math.max(c.maxMag, eq.mag || 0);
 			c.latest = Math.max(c.latest, eq.time);
 		}
-		return Object.values(grid).map((c) => ({
-			x: c.sx / c.items.length,
-			y: c.sy / c.items.length,
-			count: c.items.length,
-			maxMag: c.maxMag,
-			latest: c.latest,
-			items: c.items
-		}));
+		return Object.values(grid).map((c) => {
+			const x = c.sx / c.items.length;
+			const y = c.sy / c.items.length;
+			// Spread = farthest item from the centroid (world units). Near-zero means
+			// the points are effectively coincident and zooming will never split them.
+			let spread = 0;
+			for (const it of c.items) {
+				const d = Math.hypot(it.x - x, it.y - y);
+				if (d > spread) spread = d;
+			}
+			return {
+				x,
+				y,
+				count: c.items.length,
+				maxMag: c.maxMag,
+				latest: c.latest,
+				spread,
+				items: c.items
+			};
+		});
 	});
 
 	let clusterBubbles = $derived(clusters.filter((c) => c.count > 1));
@@ -200,11 +212,18 @@
 		selectedId != null ? mapPoints.find((e) => e.id === selectedId) : null
 	);
 
+	// "Spiderfy" — a small cluster fanned out around its centroid so co-located
+	// quakes (e.g. repeated events at the same Japan coordinates, which never
+	// separate by zooming) become individually clickable. Larger clusters zoom.
+	let spider = $state(null);
+	const SPIDER_MAX = 10;
+
 	function clusterRadius(count) {
 		return (7 + Math.min(8, Math.log2(count + 1) * 1.8)) * k;
 	}
 
 	function resetView() {
+		spider = null;
 		vbX = 0;
 		vbY = 0;
 		vbW = MW;
@@ -212,6 +231,7 @@
 	}
 
 	function zoomBy(factor, cx, cy) {
+		spider = null;
 		const newW = Math.max(40, Math.min(MW, vbW * factor));
 		const newH = Math.max(17, Math.min(MH, vbH * factor));
 		const scaleX = newW / vbW;
@@ -270,13 +290,26 @@
 		const id = target?.getAttribute?.('data-id');
 		if (id) {
 			selectedId = selectedId === id ? null : id; // toggle selection
+			spider = null;
 			return;
 		}
-		// Cluster click → zoom in on it so it splits apart
-		const ccx = target?.getAttribute?.('data-cx');
-		if (ccx != null) {
-			zoomBy(0.5, parseFloat(ccx), parseFloat(target.getAttribute('data-cy')));
+		// Cluster click → small clusters fan out (so co-located quakes are
+		// clickable); larger clusters zoom in to split apart.
+		const ci = target?.getAttribute?.('data-ci');
+		if (ci != null) {
+			const c = clusterBubbles[+ci];
+			if (c) {
+				// Fan out small clusters, or any cluster whose points are effectively
+				// coincident (zooming wouldn't separate them); otherwise zoom in.
+				if (c.count <= SPIDER_MAX || c.spread < 0.75) {
+					spider = spider && spider.x === c.x && spider.y === c.y ? null : c;
+				} else {
+					zoomBy(0.5, c.x, c.y);
+				}
+			}
+			return;
 		}
+		spider = null; // clicked empty space
 	}
 
 	// When a selection arrives (e.g. from the list) center it if it's off-screen.
@@ -451,8 +484,8 @@
 					{/each}
 				</g>
 
-				<!-- Cluster bubbles (count > 1): click to zoom in and split -->
-				{#each clusterBubbles as c (c.x + ',' + c.y)}
+				<!-- Cluster bubbles (count > 1): small ones fan out, larger ones zoom -->
+				{#each clusterBubbles as c, ci (c.x + ',' + c.y)}
 					<circle
 						cx={c.x}
 						cy={c.y}
@@ -461,9 +494,8 @@
 						opacity="0.35"
 						stroke={dotColor(c.maxMag)}
 						stroke-width={k}
-						class="cursor-zoom-in"
-						data-cx={c.x}
-						data-cy={c.y}
+						class={c.count <= SPIDER_MAX ? 'cursor-pointer' : 'cursor-zoom-in'}
+						data-ci={ci}
 					/>
 					<text
 						x={c.x}
@@ -514,6 +546,37 @@
 						<title>M{eq.mag?.toFixed(1)} - {eq.place} (depth {eq.depth?.toFixed(1)}km)</title>
 					</circle>
 				{/each}
+
+				<!-- Spiderfied cluster: fan its members out so each is clickable -->
+				{#if spider}
+					{#each spider.items as it, i (it.id)}
+						{@const ang = (i / spider.items.length) * Math.PI * 2}
+						{@const rad = (16 + spider.items.length * 1.5) * k}
+						{@const sx = spider.x + Math.cos(ang) * rad}
+						{@const sy = spider.y + Math.sin(ang) * rad}
+						<line
+							x1={spider.x}
+							y1={spider.y}
+							x2={sx}
+							y2={sy}
+							stroke="var(--color-border)"
+							stroke-width={k}
+							class="pointer-events-none"
+						/>
+						<circle
+							cx={sx}
+							cy={sy}
+							r={(dotRadius(it.mag || 0) + 1) * k}
+							fill={dotColor(it.mag || 0)}
+							stroke="var(--color-background)"
+							stroke-width={0.8 * k}
+							class="cursor-pointer"
+							data-id={it.id}
+						>
+							<title>M{it.mag?.toFixed(1)} - {it.place} (depth {it.depth?.toFixed(1)}km)</title>
+						</circle>
+					{/each}
+				{/if}
 
 				<!-- Selected point drawn on top with an accent ring -->
 				{#if selectedPoint}
