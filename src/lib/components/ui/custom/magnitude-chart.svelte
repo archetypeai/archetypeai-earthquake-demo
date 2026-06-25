@@ -126,14 +126,34 @@
 		return () => ro.disconnect();
 	});
 
-	let mapScaleX = $derived(MW / LAND_W);
-	let mapScaleY = $derived(MH / LAND_H);
+	// Uniform "fit-to-contain" scale so the equirectangular map keeps its aspect
+	// ratio (no stretch/squish in non-2.32:1 panels) and is centered with margins.
+	let mapS = $derived(Math.min(MW / LAND_W, MH / LAND_H) || 1);
+	let mapOX = $derived((MW - LAND_W * mapS) / 2);
+	let mapOY = $derived((MH - LAND_H * mapS) / 2);
+
+	// Drop degenerate land paths — full-width hairline slivers in the bundled data
+	// that otherwise render as black bars across the map.
+	const LAND = LAND_PATHS.filter((d) => {
+		const n = (d.match(/[\d.]+/g) ?? []).map(Number);
+		let minX = Infinity,
+			maxX = -Infinity,
+			minY = Infinity,
+			maxY = -Infinity;
+		for (let i = 0; i + 1 < n.length; i += 2) {
+			if (n[i] < minX) minX = n[i];
+			if (n[i] > maxX) maxX = n[i];
+			if (n[i + 1] < minY) minY = n[i + 1];
+			if (n[i + 1] > maxY) maxY = n[i + 1];
+		}
+		return !(maxX - minX > LAND_W * 0.6 && maxY - minY < 4);
+	});
 
 	function lonToX(lon) {
-		return ((lon + 180) / 360) * MW;
+		return mapOX + ((lon + 180) / 360) * LAND_W * mapS;
 	}
 	function latToY(lat) {
-		return ((90 - lat) / 180) * MH;
+		return mapOY + ((90 - lat) / 180) * LAND_H * mapS;
 	}
 
 	// Pan & zoom state
@@ -472,9 +492,9 @@
 				<!-- Ocean background -->
 				<rect x={-MW} y={-MH} width={MW * 3} height={MH * 3} fill="var(--color-card)" />
 
-				<!-- Land masses (pre-projected to 580x250, scale to container) -->
-				<g transform="scale({mapScaleX}, {mapScaleY})">
-					{#each LAND_PATHS as d (d)}
+				<!-- Land masses (pre-projected to 580x250, uniformly scaled + centered) -->
+				<g transform="translate({mapOX}, {mapOY}) scale({mapS}, {mapS})">
+					{#each LAND as d (d)}
 						<path
 							{d}
 							fill="var(--color-muted)"
