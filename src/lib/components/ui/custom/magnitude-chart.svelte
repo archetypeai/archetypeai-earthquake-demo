@@ -343,7 +343,7 @@
 				{selectedEq.depth?.toFixed(1)}km
 			</span>
 			{#if selectedEq.url}
-				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external USGS URL -->
+				<!-- eslint-disable svelte/no-navigation-without-resolve -- external USGS URL -->
 				<a
 					href={selectedEq.url}
 					target="_blank"
@@ -352,6 +352,7 @@
 				>
 					USGS <ExternalLinkIcon class="size-3" />
 				</a>
+				<!-- eslint-enable svelte/no-navigation-without-resolve -->
 			{/if}
 			<button
 				onclick={() => (selectedId = null)}
