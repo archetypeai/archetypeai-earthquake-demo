@@ -11,6 +11,7 @@
 	import Maximize2Icon from '@lucide/svelte/icons/maximize-2';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import XIcon from '@lucide/svelte/icons/x';
+	import InfoIcon from '@lucide/svelte/icons/info';
 	import { LAND_PATHS } from '$lib/data/world-land.js';
 
 	let {
@@ -134,6 +135,31 @@
 
 	// Drop degenerate land paths — full-width hairline slivers in the bundled data
 	// that otherwise render as black bars across the map.
+	// Break a path at full-width horizontal "connector" jumps (edge-to-edge at a
+	// near-constant y). The bundled data merges all continents into one stroke,
+	// and those connectors render as a filled/stroked black band across the map;
+	// converting the offending `L` (line) to `M` (pen up) lifts the pen instead.
+	function sanitizePath(d) {
+		const tokens = d.match(/[ML][\d.]+,[\d.]+|Z/g) ?? [];
+		let out = '';
+		let prev = null;
+		for (const t of tokens) {
+			if (t === 'Z') {
+				out += 'Z';
+				prev = null;
+				continue;
+			}
+			const [x, y] = t.slice(1).split(',').map(Number);
+			let cmd = t[0];
+			if (cmd === 'L' && prev && Math.abs(x - prev[0]) > 200 && Math.abs(y - prev[1]) < 3) {
+				cmd = 'M'; // lift the pen across the artifact connector
+			}
+			out += `${cmd}${x},${y}`;
+			prev = [x, y];
+		}
+		return out;
+	}
+
 	const LAND = LAND_PATHS.filter((d) => {
 		const n = (d.match(/[\d.]+/g) ?? []).map(Number);
 		let minX = Infinity,
@@ -146,8 +172,9 @@
 			if (n[i + 1] < minY) minY = n[i + 1];
 			if (n[i + 1] > maxY) maxY = n[i + 1];
 		}
+		// drop full-width hairline slivers outright
 		return !(maxX - minX > LAND_W * 0.6 && maxY - minY < 4);
-	});
+	}).map(sanitizePath);
 
 	function lonToX(lon) {
 		return mapOX + ((lon + 180) / 360) * LAND_W * mapS;
@@ -237,6 +264,9 @@
 	// separate by zooming) become individually clickable. Larger clusters zoom.
 	let spider = $state(null);
 	const SPIDER_MAX = 10;
+
+	// Legend is collapsed by default so it never blocks the map; toggled by the ⓘ.
+	let showLegend = $state(false);
 
 	function clusterRadius(count) {
 		return (7 + Math.min(8, Math.log2(count + 1) * 1.8)) * k;
@@ -627,26 +657,38 @@
 				{/if}
 			</svg>
 
-			<!-- Magnitude legend -->
-			<div
-				class="pointer-events-none absolute bottom-2 left-2 flex flex-col gap-0.5 rounded-xs border border-border bg-card/80 px-2 py-1.5 font-mono text-[10px] text-muted-foreground backdrop-blur-sm"
-			>
-				<span class="flex items-center gap-1.5">
-					<span class="inline-block size-2 rounded-full bg-atai-critical"></span> M5+
-				</span>
-				<span class="flex items-center gap-1.5">
-					<span class="inline-block size-2 rounded-full bg-atai-warning"></span> M4–5
-				</span>
-				<span class="flex items-center gap-1.5">
-					<span class="inline-block size-2 rounded-full bg-atai-neutral"></span> M2.5–4
-				</span>
-				<span class="flex items-center gap-1.5">
-					<span class="inline-block size-1.5 rounded-full bg-muted-foreground"></span> &lt;2.5
-				</span>
-				<span class="mt-0.5 flex items-center gap-1.5 border-t border-border pt-1">
-					<span class="inline-block size-2 rounded-full border border-foreground"></span> pulsing = M≥4.5
-					/ newest
-				</span>
+			<!-- Magnitude legend (collapsed by default so it never blocks the map) -->
+			<div class="absolute bottom-2 left-2 flex flex-col items-start gap-1">
+				{#if showLegend}
+					<div
+						class="flex flex-col gap-0.5 rounded-xs border border-border bg-card/80 px-2 py-1.5 font-mono text-[10px] text-muted-foreground backdrop-blur-sm"
+					>
+						<span class="flex items-center gap-1.5">
+							<span class="inline-block size-2 rounded-full bg-atai-critical"></span> M5+
+						</span>
+						<span class="flex items-center gap-1.5">
+							<span class="inline-block size-2 rounded-full bg-atai-warning"></span> M4–5
+						</span>
+						<span class="flex items-center gap-1.5">
+							<span class="inline-block size-2 rounded-full bg-atai-neutral"></span> M2.5–4
+						</span>
+						<span class="flex items-center gap-1.5">
+							<span class="inline-block size-1.5 rounded-full bg-muted-foreground"></span> &lt;2.5
+						</span>
+						<span class="mt-0.5 flex items-center gap-1.5 border-t border-border pt-1">
+							<span class="inline-block size-2 rounded-full border border-foreground"></span> pulsing
+							= M≥4.5 / newest
+						</span>
+					</div>
+				{/if}
+				<Button
+					variant="outline"
+					size="icon-sm"
+					aria-label={showLegend ? 'Hide legend' : 'Show legend'}
+					onclick={() => (showLegend = !showLegend)}
+				>
+					<InfoIcon class="size-3.5" />
+				</Button>
 			</div>
 
 			<!-- Zoom controls -->
