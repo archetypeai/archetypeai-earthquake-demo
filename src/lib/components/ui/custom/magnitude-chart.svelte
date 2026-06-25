@@ -9,6 +9,8 @@
 	import ZoomOutIcon from '@lucide/svelte/icons/zoom-out';
 	import MaximizeIcon from '@lucide/svelte/icons/maximize';
 	import Maximize2Icon from '@lucide/svelte/icons/maximize-2';
+	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
+	import XIcon from '@lucide/svelte/icons/x';
 	import { LAND_PATHS } from '$lib/data/world-land.js';
 
 	let {
@@ -31,6 +33,10 @@
 
 	let latestTime = $derived(sorted.length ? sorted[sorted.length - 1].time : Date.now());
 	let newestId = $derived(sorted.length ? sorted[sorted.length - 1].id : null);
+
+	// Selected earthquake (works for both views) — drives the detail bar so the
+	// USGS link is reachable even in fullscreen, where only one panel is shown.
+	let selectedEq = $derived(selectedId != null ? sorted.find((e) => e.id === selectedId) : null);
 
 	// Shared color/size helpers
 	function dotColor(mag) {
@@ -322,6 +328,41 @@
 		{/if}
 	</div>
 
+	{#if selectedEq}
+		<div
+			class="flex items-center gap-2 rounded-xs border border-border bg-accent/40 px-2 py-1.5 text-xs"
+		>
+			<span
+				class="rounded px-1.5 py-0.5 font-mono text-[10px] text-black/70"
+				style="background:{dotColor(selectedEq.mag || 0)}"
+			>
+				M{selectedEq.mag?.toFixed(1)}
+			</span>
+			<span class="min-w-0 flex-1 truncate text-foreground">{selectedEq.place}</span>
+			<span class="font-mono text-[10px] whitespace-nowrap text-muted-foreground">
+				{selectedEq.depth?.toFixed(1)}km
+			</span>
+			{#if selectedEq.url}
+				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- external USGS URL -->
+				<a
+					href={selectedEq.url}
+					target="_blank"
+					rel="noopener"
+					class="inline-flex items-center gap-1 whitespace-nowrap text-primary hover:underline"
+				>
+					USGS <ExternalLinkIcon class="size-3" />
+				</a>
+			{/if}
+			<button
+				onclick={() => (selectedId = null)}
+				aria-label="Clear selection"
+				class="text-muted-foreground hover:text-foreground"
+			>
+				<XIcon class="size-3.5" />
+			</button>
+		</div>
+	{/if}
+
 	{#if sorted.length === 0}
 		<p class="py-8 text-center text-sm text-muted-foreground">No data</p>
 	{:else if view === 'chart'}
@@ -517,6 +558,10 @@
 				</span>
 				<span class="flex items-center gap-1.5">
 					<span class="inline-block size-1.5 rounded-full bg-muted-foreground"></span> &lt;2.5
+				</span>
+				<span class="mt-0.5 flex items-center gap-1.5 border-t border-border pt-1">
+					<span class="inline-block size-2 rounded-full border border-foreground"></span> pulsing = M≥4.5
+					/ newest
 				</span>
 			</div>
 
