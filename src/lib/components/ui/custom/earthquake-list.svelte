@@ -1,4 +1,5 @@
 <script>
+	import { untrack } from 'svelte';
 	import { cn } from '$lib/utils.js';
 	import BackgroundCard from '$lib/components/ui/patterns/background-card/index.js';
 	import Badge from '$lib/components/ui/primitives/badge/index.js';
@@ -7,10 +8,19 @@
 	import ListIcon from '@lucide/svelte/icons/list';
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
 	import Maximize2Icon from '@lucide/svelte/icons/maximize-2';
+	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 
-	let { earthquakes = [], loading = false, onexpand, class: className, ...restProps } = $props();
+	let {
+		earthquakes = [],
+		loading = false,
+		selectedId = $bindable(null),
+		onexpand,
+		class: className,
+		...restProps
+	} = $props();
 
 	let view = $state('recent');
+	let listEl = $state(null);
 
 	function magColor(mag) {
 		if (mag >= 5) return 'bg-atai-critical text-black/70';
@@ -34,9 +44,26 @@
 		// USGS format: "20 km E of Fort Davis, Texas" or "south of the Fiji Islands"
 		const parts = place.split(', ');
 		if (parts.length >= 2) return parts[parts.length - 1];
-		// International: "south of the Fiji Islands", "western Indian-Antarctic Ridge"
 		return place;
 	}
+
+	function select(id) {
+		selectedId = selectedId === id ? null : id;
+	}
+
+	// A selection arriving from the map: switch to the Recent list and scroll the
+	// row into view so the two panels stay in sync.
+	$effect(() => {
+		const id = selectedId;
+		if (id == null) return;
+		untrack(() => {
+			if (view === 'region') view = 'recent';
+		});
+		// defer so the row exists after any view switch / render
+		requestAnimationFrame(() => {
+			listEl?.querySelector(`[data-eqid="${id}"]`)?.scrollIntoView({ block: 'nearest' });
+		});
+	});
 
 	let regionData = $derived.by(() => {
 		const map = new Map();
@@ -90,18 +117,30 @@
 	</div>
 
 	<ScrollArea class="min-h-0 flex-1">
-		<div class="flex flex-col gap-1 pr-3">
+		<div bind:this={listEl} class="flex flex-col gap-1 pr-3">
 			{#if loading}
-				<p class="text-muted-foreground py-8 text-center text-sm">Loading...</p>
+				<p class="py-8 text-center text-sm text-muted-foreground">Loading...</p>
 			{:else if earthquakes.length === 0}
-				<p class="text-muted-foreground py-8 text-center text-sm">No earthquakes found</p>
+				<p class="py-8 text-center text-sm text-muted-foreground">No earthquakes found</p>
 			{:else if view === 'recent'}
 				{#each earthquakes as eq (eq.id)}
-					<a
-						href={eq.url}
-						target="_blank"
-						rel="noopener"
-						class="hover:bg-accent/50 grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xs px-2 py-1.5 transition-colors"
+					<div
+						data-eqid={eq.id}
+						role="button"
+						tabindex="0"
+						aria-pressed={selectedId === eq.id}
+						onclick={() => select(eq.id)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								select(eq.id);
+							}
+						}}
+						class={cn(
+							'grid cursor-pointer grid-cols-[auto_1fr_auto_auto] items-center gap-3 rounded-xs px-2 py-1.5 transition-colors outline-none',
+							'focus-visible:ring-2 focus-visible:ring-ring',
+							selectedId === eq.id ? 'bg-accent ring-1 ring-primary' : 'hover:bg-accent/50'
+						)}
 					>
 						<Badge
 							variant="outline"
@@ -110,15 +149,27 @@
 							M{eq.mag?.toFixed(1)}
 						</Badge>
 						<div class="min-w-0">
-							<p class="text-foreground truncate text-sm">{eq.place}</p>
-							<p class="text-muted-foreground font-mono text-[10px]">
+							<p class="truncate text-sm text-foreground">{eq.place}</p>
+							<p class="font-mono text-[10px] text-muted-foreground">
 								Depth: {eq.depth?.toFixed(1)}km
 							</p>
 						</div>
-						<span class="text-muted-foreground font-mono text-[10px] whitespace-nowrap">
+						<span class="font-mono text-[10px] whitespace-nowrap text-muted-foreground">
 							{timeAgo(eq.time)}
 						</span>
-					</a>
+						{#if eq.url}
+							<a
+								href={eq.url}
+								target="_blank"
+								rel="noopener"
+								onclick={(e) => e.stopPropagation()}
+								aria-label="View on USGS"
+								class="rounded-xs p-1 text-muted-foreground hover:text-foreground"
+							>
+								<ExternalLinkIcon class="size-3.5" />
+							</a>
+						{/if}
+					</div>
 				{/each}
 			{:else}
 				{#each regionData as region (region.region)}
@@ -126,19 +177,16 @@
 						class="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 rounded-xs px-2 py-1.5"
 					>
 						<div class="min-w-0">
-							<p class="text-foreground truncate text-sm">{region.region}</p>
-							<p class="text-muted-foreground font-mono text-[10px]">
+							<p class="truncate text-sm text-foreground">{region.region}</p>
+							<p class="font-mono text-[10px] text-muted-foreground">
 								Avg: M{region.avgMag.toFixed(1)} · Latest: {timeAgo(region.latest)}
 							</p>
 						</div>
-						<Badge
-							variant="outline"
-							class={cn('font-mono text-xs', magColor(region.maxMag))}
-						>
+						<Badge variant="outline" class={cn('font-mono text-xs', magColor(region.maxMag))}>
 							Max M{region.maxMag.toFixed(1)}
 						</Badge>
-						<span class="text-foreground font-mono text-sm">{region.count}</span>
-						<span class="text-muted-foreground text-[10px]">events</span>
+						<span class="font-mono text-sm text-foreground">{region.count}</span>
+						<span class="text-[10px] text-muted-foreground">events</span>
 					</div>
 				{/each}
 			{/if}

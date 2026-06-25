@@ -18,6 +18,7 @@
 	let intervalId = $state(null);
 	let expanded = $state(null);
 	let countdown = $state(60);
+	let selectedId = $state(null); // shared between the map and the list
 
 	async function loadData(feed) {
 		loading = true;
@@ -87,31 +88,32 @@
 </script>
 
 {#snippet partnerSnippet()}
-	<span class="text-muted-foreground font-mono text-sm tracking-wider uppercase"
+	<span class="font-mono text-sm tracking-wider text-muted-foreground uppercase"
 		>Seismic Monitor</span
 	>
 {/snippet}
 
 <div
-	class="bg-background text-foreground grid h-screen w-screen grid-rows-[auto_auto_1fr] overflow-hidden"
+	class="grid h-screen w-screen grid-rows-[auto_auto_1fr] overflow-hidden bg-background text-foreground"
 >
 	<Menubar partnerLogo={partnerSnippet}>
 		<div class="flex items-center gap-4">
 			<StatsBar {earthquakes} />
-			<div class="text-muted-foreground flex items-center gap-1.5 text-xs">
+			<div class="flex items-center gap-1.5 text-xs text-muted-foreground">
 				<RefreshCwIcon class="size-3" aria-hidden="true" />
-				<span>Next update in <span class="text-foreground font-mono">{countdown}s</span></span>
+				<span>Next update in <span class="font-mono text-foreground">{countdown}s</span></span>
 			</div>
 		</div>
 	</Menubar>
 
-	<div class="border-border border-b px-4 py-2">
+	<div class="border-b border-border px-4 py-2">
 		<FeedSelector bind:selected={selectedFeed} onchange={handleFeedChange} />
 	</div>
 
 	<main class="grid grid-cols-2 grid-rows-2 gap-4 overflow-hidden p-4">
 		<MagnitudeChart
 			{earthquakes}
+			bind:selectedId
 			onexpand={() => toggleExpand('magnitude')}
 			class="max-h-full overflow-hidden"
 		/>
@@ -126,18 +128,18 @@
 		<EarthquakeList
 			{earthquakes}
 			{loading}
+			bind:selectedId
 			onexpand={() => toggleExpand('earthquakes')}
 			class="max-h-full"
 		/>
-
 	</main>
 </div>
 
 <!-- Fullscreen overlay -->
 {#if expanded}
-	<div class="bg-background fixed inset-0 z-50 flex flex-col overflow-hidden">
-		<div class="border-border flex items-center justify-between border-b px-4 py-2">
-			<span class="text-foreground font-mono text-sm uppercase tracking-wider">
+	<div class="fixed inset-0 z-50 flex flex-col overflow-hidden bg-background">
+		<div class="flex items-center justify-between border-b border-border px-4 py-2">
+			<span class="font-mono text-sm tracking-wider text-foreground uppercase">
 				{expanded === 'magnitude' ? 'Magnitude' : 'Earthquakes'}
 			</span>
 			<Button variant="outline" size="sm" onclick={() => (expanded = null)}>
@@ -147,9 +149,9 @@
 		</div>
 		<div class="min-h-0 flex-1 p-4">
 			{#if expanded === 'magnitude'}
-				<MagnitudeChart {earthquakes} class="h-full" />
+				<MagnitudeChart {earthquakes} bind:selectedId class="h-full" />
 			{:else}
-				<EarthquakeList {earthquakes} {loading} class="h-full" />
+				<EarthquakeList {earthquakes} {loading} bind:selectedId class="h-full" />
 			{/if}
 		</div>
 	</div>
