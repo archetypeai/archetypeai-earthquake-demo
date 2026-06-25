@@ -135,29 +135,36 @@
 
 	// Drop degenerate land paths — full-width hairline slivers in the bundled data
 	// that otherwise render as black bars across the map.
-	// Break a path at full-width horizontal "connector" jumps (edge-to-edge at a
-	// near-constant y). The bundled data merges all continents into one stroke,
-	// and those connectors render as a filled/stroked black band across the map;
-	// converting the offending `L` (line) to `M` (pen up) lifts the pen instead.
+	// The bundled data merges many continents into one closed path, stitched by
+	// long "connector" segments that jump across the map (edge-to-edge), which
+	// render as black bars/diagonals. Treat each path as a cycle, cut it at those
+	// long segments, and re-emit the pieces as properly closed sub-loops — so the
+	// connectors disappear without leaving an open chain (which would fill as a
+	// diagonal). Paths with no long segments are returned unchanged.
+	const JUMP = 40; // world units; real coastline steps are < ~15
 	function sanitizePath(d) {
-		const tokens = d.match(/[ML][\d.]+,[\d.]+|Z/g) ?? [];
-		let out = '';
-		let prev = null;
-		for (const t of tokens) {
-			if (t === 'Z') {
-				out += 'Z';
-				prev = null;
-				continue;
+		const pts = [];
+		for (const m of d.matchAll(/[ML]([\d.]+),([\d.]+)/g)) pts.push([+m[1], +m[2]]);
+		const n = pts.length;
+		if (n < 3) return d;
+		const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+		const cuts = [];
+		for (let i = 0; i < n; i++) if (dist(pts[i], pts[(i + 1) % n]) > JUMP) cuts.push(i);
+		if (cuts.length === 0) return d;
+		const arcs = [];
+		for (let c = 0; c < cuts.length; c++) {
+			const start = (cuts[c] + 1) % n;
+			const end = cuts[(c + 1) % cuts.length];
+			const arc = [];
+			let i = start;
+			while (true) {
+				arc.push(pts[i]);
+				if (i === end) break;
+				i = (i + 1) % n;
 			}
-			const [x, y] = t.slice(1).split(',').map(Number);
-			let cmd = t[0];
-			if (cmd === 'L' && prev && Math.abs(x - prev[0]) > 200 && Math.abs(y - prev[1]) < 3) {
-				cmd = 'M'; // lift the pen across the artifact connector
-			}
-			out += `${cmd}${x},${y}`;
-			prev = [x, y];
+			if (arc.length >= 2) arcs.push(arc);
 		}
-		return out;
+		return arcs.map((a) => 'M' + a.map((p) => p.join(',')).join('L') + 'Z').join('');
 	}
 
 	const LAND = LAND_PATHS.filter((d) => {
