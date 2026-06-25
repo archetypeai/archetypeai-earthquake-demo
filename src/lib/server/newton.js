@@ -35,7 +35,8 @@ export async function queryNewton(query) {
 				instruction_prompt: INSTRUCTION_PROMPT,
 				file_ids: [],
 				model: MODEL,
-				max_new_tokens: 1024
+				// Ranked multi-region analyses run long; 1024 cut them off mid-answer.
+				max_new_tokens: 3072
 			}),
 			signal: controller.signal
 		});
