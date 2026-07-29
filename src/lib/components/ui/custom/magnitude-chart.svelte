@@ -340,6 +340,10 @@
 		clampView();
 	}
 
+	function toggleSelected(id) {
+		selectedId = selectedId === id ? null : id;
+	}
+
 	function handlePointerUp(e) {
 		dragging = false;
 		if (dragDist >= 5) return; // was a drag, not a click
@@ -505,7 +509,14 @@
 						class={eq.url ? 'cursor-pointer hover:opacity-100' : ''}
 						role="button"
 						tabindex="-1"
-						onclick={() => (selectedId = selectedId === eq.id ? null : eq.id)}
+						aria-label="M{eq.mag?.toFixed(1)} {eq.place}"
+						onclick={() => toggleSelected(eq.id)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								toggleSelected(eq.id);
+							}
+						}}
 					>
 						<title>M{eq.mag?.toFixed(1)} - {eq.place}</title>
 					</circle>
@@ -520,6 +531,8 @@
 				class="absolute inset-0 h-full w-full cursor-grab active:cursor-grabbing"
 				width={MW}
 				height={MH}
+				role="application"
+				aria-label="World map of earthquake epicenters. Drag to pan, scroll to zoom."
 				onwheel={handleWheel}
 				onpointerdown={handlePointerDown}
 				onpointermove={handlePointerMove}
