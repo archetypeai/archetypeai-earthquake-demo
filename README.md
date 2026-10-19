@@ -19,7 +19,7 @@ Newton analyzes live USGS earthquake data to identify patterns — aftershock se
 
 - **SvelteKit** with Svelte 5 runes
 - **Archetype AI Design System** — semantic tokens, component primitives, composite patterns
-- **Newton API** — Direct Query endpoint (`/v0.5/query`) for text reasoning with the C 2.6 fusion model (`Newton::c2_6_8b_fp8_260424d7a55d5e`), per the [`atai-newton-fusion-model`](https://github.com/archetypeai/agent-skills/tree/main/skills/atai-newton-fusion-model) skill
+- **Newton API** — Direct Query endpoint (`/api/lens/query`) for text reasoning with the C 2.6 fusion model (`Newton::c2_6_8b_fp8_260424d7a55d5e`), per the [`atai-newton-fusion-model`](https://github.com/archetypeai/agent-skills/tree/main/skills/atai-newton-fusion-model) skill
 - **USGS GeoJSON Feeds** — real-time earthquake catalog, updated every minute
 - **Tailwind v4** — styling with semantic design tokens
 
@@ -33,7 +33,7 @@ Create a `.env` file:
 
 ```
 ATAI_API_KEY=your_api_key_here
-ATAI_API_ENDPOINT=https://api.u1.archetypeai.app/
+ATAI_API_ENDPOINT=https://platform.u1.archetypeai.app
 ```
 
 ## Development
@@ -48,7 +48,7 @@ Open `http://localhost:5173`. Earthquake data loads automatically. Use the chat 
 
 1. Server polls USGS GeoJSON feeds (updated every minute by USGS)
 2. Earthquake data displays in a scrollable list and magnitude scatter chart
-3. When you ask a question in chat, the server fetches fresh earthquake data, formats it as structured text, and sends it to Newton's `/v0.5/query` endpoint
+3. When you ask a question in chat, the server fetches fresh earthquake data, formats it as structured text, and sends it to Newton's `/api/lens/query` endpoint
 4. Newton analyzes the seismic data and responds with pattern analysis, risk assessment, or answers to specific questions
 
 ## Architecture
