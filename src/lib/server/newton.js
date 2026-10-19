@@ -1,6 +1,8 @@
 import { ATAI_API_KEY, ATAI_API_ENDPOINT } from '$env/static/private';
 
-const API_VERSION = 'v0.5';
+// Every API surface lives under one versionless /api prefix, and the Direct
+// Query endpoint keeps its lens/ namespace.
+const API_PREFIX = 'api';
 // C 2.6 fusion checkpoint, per the atai-newton-fusion-model skill.
 const MODEL = 'Newton::c2_6_8b_fp8_260424d7a55d5e';
 
@@ -15,7 +17,7 @@ const INSTRUCTION_PROMPT =
 	'M5-6 (strong, potential damage), M6-7 (major), M7+ (great, significant damage).';
 
 export async function queryNewton(query) {
-	const url = `${ATAI_API_ENDPOINT.replace(/\/$/, '')}/${API_VERSION}/query`;
+	const url = `${ATAI_API_ENDPOINT.replace(/\/$/, '')}/${API_PREFIX}/lens/query`;
 
 	const controller = new AbortController();
 	const timeoutId = setTimeout(() => controller.abort(), 120000);
