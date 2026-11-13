@@ -80,3 +80,19 @@ src/
 - "Is the current level of M4+ earthquakes normal for a 24-hour period?"
 - "Summarize the strongest earthquakes and their potential impact"
 - "Are any of these earthquakes near major population centers?"
+
+## Licence
+
+The code is under the [Apache License 2.0](LICENSE). The repo holds no earthquake data:
+the app fetches it live from the USGS feeds, and USGS data is in the U.S. public domain
+(see [Data attribution](#data-attribution)).
+
+The PP Neue Montreal fonts in `static/fonts/` are copyright Pangram Pangram Foundry and
+aren't covered by the Apache licence either. The files in `.claude/` carry their own MIT
+licence ([`.claude/LICENSE`](.claude/LICENSE)).
+
+## Data attribution
+
+Earthquake data: U.S. Geological Survey, Earthquake Hazards Program, real-time GeoJSON
+feeds. USGS-authored data is in the U.S. public domain; USGS asks for the credit
+"U.S. Geological Survey" ([Copyrights and Credits](https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits)).
